@@ -27,23 +27,13 @@ def betacred(k, n, j, p):
     return (l, u)
 
 
-import argparse
-ap = argparse.ArgumentParser("statcred")
-ap.add_argument("-t", choices=["beta", "t", "z"], default="beta",
-                help="the type of test to do")
-ap.add_argument("-k", type=int, default=0, help="number of successes")
-ap.add_argument("-n", type=int, default=0, help="number of trials")
-ap.add_argument("-j", action="store_true", help="use the Jeffreys interval")
-ap.add_argument("-p", type=float, default=95, help="pertinent percentage")
-ap.add_argument("-f", nargs="+",
-                help="data file(s) to be read using numpy.loadtxt")
-arg = ap.parse_args()
-
-if arg.t == "beta":
+def doBeta(arg):
     (l, u) = betacred(arg.k, arg.n, arg.j, arg.p)
     print("{0:.1f}% limits: {1:1.3f} {2:1.3f}".format(arg.p, l, u))
 
-elif arg.t == "t":
+def doT(arg):
+    if not arg.f:
+        raise Exception("t-test needs two files")
     f = []
     for i in range(len(arg.f)):
         f.append(np.loadtxt(arg.f[i]))
@@ -53,3 +43,42 @@ elif arg.t == "t":
     # Two-sample equal-variance two-tailed t-test
     (s, p) = ttest_ind(f[0], f[1])
     print("p = {0:.3f}".format(p))
+
+# Argument error handler
+def doError(arg):
+    print("Please specify a command; try -h")
+
+
+#
+# Everything above is just functions,
+# the main program starts here with the argument parser
+#
+import argparse
+ap = argparse.ArgumentParser("statcred")
+sp = ap.add_subparsers(help="The tests supported in this program")
+ap.set_defaults(func=doError)
+
+# There are subparsers for each distinct test type.
+# Each should set a func= to call the appropriate handler
+apB = sp.add_parser("beta", help="credible interval based on a beta dist.")
+apT = sp.add_parser("t", help="t-tests; the data are normally distributed")
+apZ = sp.add_parser("z", help="z-tests; the data are approx. normal")
+
+# Beta credibility args
+apB.add_argument("-k", type=int, default=0, help="number of successes")
+apB.add_argument("-n", type=int, default=0, help="number of trials")
+apB.add_argument("-j", action="store_true", help="use the Jeffreys interval")
+apB.add_argument("-p", type=float, default=95, help="pertinent percentage")
+apB.set_defaults(func=doBeta)
+
+# T args
+apT.add_argument("-f", nargs="+",
+                 help="data file(s) to be read using numpy.loadtxt")
+apT.set_defaults(func=doT)
+
+# All set up, parse it all and call the right handler
+arg = ap.parse_args()
+arg.func(arg)
+
+# All done; just drop out
+# print("Args:", arg)
