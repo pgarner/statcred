@@ -53,13 +53,15 @@ def doError(arg):
 # Everything above is just functions,
 # the main program starts here with the argument parser
 #
+# There are subparsers for each distinct test type.
+# Each should set a func= to call the appropriate handler
+#
 import argparse
 ap = argparse.ArgumentParser("statcred")
 sp = ap.add_subparsers(help="The tests supported in this program")
 ap.set_defaults(func=doError)
 
-# There are subparsers for each distinct test type.
-# Each should set a func= to call the appropriate handler
+# The subparsers
 apB = sp.add_parser("beta", help="credible interval based on a beta dist.")
 apT = sp.add_parser("t", help="t-tests; the data are normally distributed")
 apZ = sp.add_parser("z", help="z-tests; the data are approx. normal")
