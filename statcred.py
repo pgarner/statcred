@@ -10,6 +10,7 @@
 
 import numpy as np
 from scipy.stats import ttest_ind
+from scipy.stats import ttest_1samp
 from scipy.special import betainc
 from scipy.special import betaincinv
 
@@ -29,20 +30,26 @@ def betacred(k, n, j, p):
 
 def doBeta(arg):
     (l, u) = betacred(arg.k, arg.n, arg.j, arg.p)
-    print("{0:.1f}% limits: {1:1.3f} {2:1.3f}".format(arg.p, l, u))
+    print("Mode: {3:1.4f}; {0:.1f}% limits: {1:1.4f} {2:1.4f}".format(arg.p, l, u, arg.k / arg.n))
+
 
 def doT(arg):
     if not arg.f:
-        raise Exception("t-test needs two files")
+        raise Exception("t-test needs at least one file")
     f = []
     for i in range(len(arg.f)):
         f.append(np.loadtxt(arg.f[i]))
-    if (len(f) != 2):
-        raise Exception("Must be two files for a t-test")
 
-    # Two-sample equal-variance two-tailed t-test
-    (s, p) = ttest_ind(f[0], f[1])
-    print("p = {0:.3f}".format(p))
+    if (len(f) == 1):
+        # One-sample two-tailed t-test
+        (s, p) = ttest_1samp(f[0], arg.m)
+        print("p = {0:.5f}".format(p))
+    elif (len(f) == 2):
+        # Two-sample equal-variance two-tailed t-test
+        (s, p) = ttest_ind(f[0], f[1])
+        print("p = {0:.5f}".format(p))
+    else:
+        raise Exception("t-test has too many files")
 
 # Argument error handler
 def doError(arg):
@@ -76,6 +83,7 @@ apB.set_defaults(func=doBeta)
 # T args
 apT.add_argument("-f", nargs="+",
                  help="data file(s) to be read using numpy.loadtxt")
+apT.add_argument("-m", type=float, default=0.0, help="known mean")
 apT.set_defaults(func=doT)
 
 # All set up, parse it all and call the right handler
