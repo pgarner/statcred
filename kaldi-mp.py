@@ -10,6 +10,7 @@
 import argparse
 import numpy as np
 from scipy.stats import ttest_rel
+from scipy.stats import wilcoxon
 from collections import namedtuple
 
 # Parser. It's just two positional arguments
@@ -17,6 +18,9 @@ ap = argparse.ArgumentParser("kaldi-merge")
 ap.add_argument("f1", help="First file")
 ap.add_argument("f2", help="Second file")
 ap.add_argument("-o", help="Output file of differences")
+ap.add_argument("-w", action="store_true",
+                help="Use Wilcoxon signed rank instead of t")
+ap.add_argument("-g", type=int, default=1, help="Group size (utterances)")
 arg = ap.parse_args()
 
 # Read the file into a tuple of values
@@ -30,18 +34,26 @@ def readResult(fn):
     d = []
     error = 0
     total = 0
+    err = 0
+    tot = 0
+    n = 0
     for i in range(len(t)-1): # Skip the last line
         if i == 0:            # And the first
             continue
         # Fields: ID #Cor #Sub #Del #Ins #Tol
         #          0    1    2    3    4    5
         f = t[i].split()
-        err = int(f[2]) + int(f[3]) + int(f[4])
-        tot = int(f[5])
-        if tot > 0:
-            d.append(err/tot)
-        error += err
-        total += tot
+        err += int(f[2]) + int(f[3]) + int(f[4])
+        tot += int(f[5])
+        if (n >= arg.g or i == len(t) - 2):
+            if tot > 0:
+                d.append(err/tot)
+            error += err
+            total += tot
+            err = 0
+            tot = 0
+            n = 0
+        n += 1
     return Result(error, total, d)
 
 # Read the two files and report stats
@@ -59,8 +71,12 @@ if arg.o:
     d = np.array(r1.rate) - np.array(r2.rate)
     np.savetxt(arg.o, d)
 
-# This is basically the same as statcred's one sample t-test with mean=0, but
-# just to confirm that me and scipy have the same understanding of what's what,
-# and since it's so simple...
-(t, p) = ttest_rel(r1.rate, r2.rate)
-print("p-value: {0:.5f}".format(p))
+# Test the result
+if arg.w:
+    (w, p) = wilcoxon(r1.rate, r2.rate)
+else:
+    # This is basically the same as statcred's one sample t-test with mean=0,
+    # but just to confirm that me and scipy have the same understanding of
+    # what's what, and since it's so simple...
+    (t, p) = ttest_rel(r1.rate, r2.rate)
+print("p-value: {0:.5f} from {1} samples".format(p, len(r1.rate)))
